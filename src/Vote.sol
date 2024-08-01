@@ -24,11 +24,34 @@
 pragma solidity ^0.8.24;
 
 contract VoteProtocol {
-
-    constructor(bytes32 merkleRoot) Ownable(msg.sender) {
-        
+    error VoteProtocol__InvalidAddCandidate();
+    
+    struct Candidate{
+        uint256 id;
+        string name;
+        uint256 voteCount;
     }
-    function addCandidate() external {}
+    uint256 private candidateCount;
+    mapping (uint256 candidateId => Candidate candidateInformation) public s_candidates;
+
+    event AddCandidate(uint256 candidateCount, string candidateName);
+
+    constructor(bytes32 merkleRoot)  {}
+
+    function addCandidate(string memory _name) external {
+        if (bytes(_name).length == 0) {
+            revert VoteProtocol__InvalidAddCandidate();
+        }
+        s_candidates[candidateCount] = Candidate({
+            id: candidateCount,
+            name: _name,
+            voteCount: 0
+        });
+        
+        candidateCount++;
+
+        emit AddCandidate(candidateCount, _name);
+    }
     function startVote() external {}
     function stopVote () external {}
     function countVote () external {}
