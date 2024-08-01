@@ -25,6 +25,15 @@ pragma solidity ^0.8.24;
 
 contract VoteProtocol {
 
-   
+    constructor(bytes32 merkleRoot) Ownable(msg.sender) {
+        
+    }
+    function addCandidate() external {}
+    function startVote() external {}
+    function stopVote () external {}
+    function countVote () external {}
+    function vote(address account, bytes32[] calldata merkleProof) external {
+    
+   }
     
 }
