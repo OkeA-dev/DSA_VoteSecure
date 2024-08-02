@@ -30,6 +30,7 @@ contract VoteProtocol {
     error VoteProtocol__InvalidAdmistrator();
     error VoteProtocol__NeedMoreCandidateToRegister();
     error VoteProtocol__InvalidProof();
+    error VoteProtocol__AlreadyVoted();
 
     enum Status {
         Registration,
@@ -48,6 +49,7 @@ contract VoteProtocol {
     uint256 private s_candidateCount;
     address public immutable s_voteAdmistrator;
     mapping(uint256 candidateId => Candidate candidateInformation) public s_candidates;
+    mapping(address voter => bool confirmVote) public s_hasVoted;
 
     event AddCandidate(uint256 candidateCount, string candidateName);
 
@@ -91,9 +93,13 @@ contract VoteProtocol {
 
     function vote(address account, uint256 candidateId, bytes32[] calldata merkleProof) external {
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(account))));
+        if (s_hasVoted[account]) {
+            revert VoteProtocol__AlreadyVoted();
+        }
         if (!MerkleProof.verify(merkleProof, i_merkleRoot, leaf)) {
             revert VoteProtocol__InvalidProof();
         }
+        s_candidates[candidateId].voteCount += 1;
     }
 
     function _stopVote() internal {
