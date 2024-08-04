@@ -33,6 +33,7 @@ contract VoteProtocol {
     error VoteProtocol__AlreadyVoted();
     error VoteProtocol__RegistrationHasEnded();
     error VoteProtocol__HasAlreadyRegistered();
+    error VoteProtocol__VotingHasNotStarted();
 
     enum Status {
         Registration,
@@ -55,6 +56,7 @@ contract VoteProtocol {
     mapping(address voter => bool confirmVote) public s_hasVoted;
 
     event AddCandidate(uint256 candidateCount, string candidateName);
+    event Vote(bytes32 hashVoterAccount, uint256 candidateId, bool checkVote);
 
     constructor(bytes32 merkleRoot) {
         s_voteAdmistrator = msg.sender;
@@ -76,12 +78,13 @@ contract VoteProtocol {
      */
 
     function addCandidate(string memory _name, address account) external onlyOwner {
-        if (bytes(_name).length == 0 && account == address(0)) {
-            revert VoteProtocol__InvalidCandidateNameAndAccount();
-        }
         if (currentStatus != Status.Registration) {
             revert VoteProtocol__RegistrationHasEnded();
         }
+        if (bytes(_name).length == 0 && account == address(0)) {
+            revert VoteProtocol__InvalidCandidateNameAndAccount();
+        }
+        
         if (_confirmIfCandidateHasRegistered(account)) {
             revert VoteProtocol__HasAlreadyRegistered();
         }
@@ -94,13 +97,15 @@ contract VoteProtocol {
     }
 
     function startVote() external onlyOwner {
-        if (s_candidateCount <= 1) {
+        if (s_candidates.length <= 1) {
             revert VoteProtocol__NeedMoreCandidateToRegister();
         }
         currentStatus = Status.Voting;
     }
 
-    function countVote() external {}
+    function countVote(uint256 candidateId) external returns (uint256) {
+        return s_candidates[candidateId].voteCount;
+    }
 
     /**
      * 
@@ -112,13 +117,24 @@ contract VoteProtocol {
 
     function vote(address account, uint256 candidateId, bytes32[] calldata merkleProof) external {
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(account))));
+     
+        if (currentStatus != Status.Voting) {
+            revert VoteProtocol__VotingHasNotStarted();
+        }
         if (s_hasVoted[account]) {
             revert VoteProtocol__AlreadyVoted();
         }
         if (!MerkleProof.verify(merkleProof, i_merkleRoot, leaf)) {
             revert VoteProtocol__InvalidProof();
         }
+
+        bytes32 hashVoterAccount = keccak256(abi.encode(account));
+        bool checkVote = true;
+
         s_candidates[candidateId].voteCount += 1;
+        
+
+        emit Vote(hashVoterAccount, candidateId, checkVote);
     }
 
     function _stopVote() internal {

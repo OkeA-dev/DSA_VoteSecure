@@ -28,26 +28,36 @@ import {VoteProtocol} from "../src/Vote.sol";
 
 contract TestVote is Test {
     bytes32 private constant ROOT = 0x826accc591adbdbb3f180343727b312a11c7c5c571e0e0924df1513cbb4c512e;
-    address voter_1;
+    address voterOne;
     address candidate_1;
     address candidate_2;
     VoteProtocol vote;
 
-    bytes32 proofOne = 0xe5ebd1e1b5a5478a944ecab36a9a954ac3b6b8216875f6524caa7a1d87096576;
-    bytes32 proofTwo = 0x0fd7c981d39bece61f7499702bf59b3114a90e66b51ba2c53abdf7b62986c00a;
-    bytes32[] public PROOF = [proofTwo, proofOne];
+    bytes32 proofOne = 0xd791b4384f11048b2330e9ec924a5c80226526b5e9d7f65537637981af4d404f;
+    bytes32 proofTwo = 0xa734766c7655875218b9cf7c55c995a5c996ca326e5f933e3793def3b14d12a1;
+    bytes32 proofThree = 0x533789ebb1206c7510cd612eec17e2ebd028bb279ea38f5989853659e7fa464e;
+    bytes32[] public PROOF = [proofOne, proofTwo, proofThree];
+
+    modifier candidateOne {
+         vote.addCandidate("Oke Abdulquadri", candidate_1);
+         _;
+    }
+    modifier candidateTwo {
+        vote.addCandidate("Adu Samson", candidate_2);
+        _;
+    }
 
     function setUp() public {
         vote = new VoteProtocol(ROOT);
-        voter_1 = makeAddr("user");
+        voterOne = makeAddr("user");
         candidate_1 = makeAddr("candidate1");
         candidate_2 = makeAddr("candidate2");
     }
 
     function testVoteInvalidCandidate() public {
-        vm.prank(voter_1);
+        vm.prank(voterOne);
         vm.expectRevert();
-        vote.vote(voter_1, 2, PROOF);
+        vote.vote(voterOne, 2, PROOF);
     }
 
     /////////////////////////////
@@ -55,7 +65,7 @@ contract TestVote is Test {
     ///////////////////////////
 
     function testOnlyVoteAdmistratorCanAddCandidate() public {
-        vm.prank(voter_1);
+        vm.prank(voterOne);
         vm.expectRevert(VoteProtocol.VoteProtocol__InvalidAdmistrator.selector);
         vote.addCandidate("Oke Abdulquadri", candidate_1);
     }
@@ -65,10 +75,33 @@ contract TestVote is Test {
         vote.addCandidate("", address(0));
     }
 
-    function testAddCandidate() public {
+    function testAddCandidate() public  candidateOne candidateTwo {
         uint256 count = 2;
-        vote.addCandidate("Oke Abdulquadri", candidate_1);
-        vote.addCandidate("Adu Samson", candidate_2);
+        
         assertEq(vote.getCandidateCount(), count);
     }
+
+    /////////////////////////
+    ///      VOTE        ///
+    ///////////////////////
+
+    function testVoteBeforeVotingStarted() public  candidateOne{
+        uint256 candidateId = 0;
+        vm.prank(voterOne);
+        vm.expectRevert(VoteProtocol. VoteProtocol__VotingHasNotStarted.selector);
+        vote.vote(voterOne, candidateId, PROOF);
+    }
+    
+    function testCandidateMustBeMoreThanOne() public  candidateOne candidateTwo{
+        uint256 candidateId = 0;
+        uint256 voteCount = 1;
+        vote.startVote();
+        vm.prank(voterOne);
+        vote.vote(voterOne, candidateId, PROOF);
+
+        assertEq(vote.countVote(candidateId), voteCount );
+    }
+
+    
+    
 }
