@@ -24,8 +24,10 @@
 pragma solidity ^0.8.24;
 
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract VoteProtocol {
+contract VoteProtocol is EIP712 {
     error VoteProtocol__InvalidCandidateNameAndAccount();
     error VoteProtocol__InvalidAdmistrator();
     error VoteProtocol__NeedMoreCandidateToRegister();
@@ -34,6 +36,7 @@ contract VoteProtocol {
     error VoteProtocol__RegistrationHasEnded();
     error VoteProtocol__HasAlreadyRegistered();
     error VoteProtocol__VotingHasNotStarted();
+    error VoteProtocol__InvalidSignature();
 
     enum Status {
         Registration,
@@ -48,6 +51,14 @@ contract VoteProtocol {
         uint256 voteCount;
     }
 
+    struct Vote {
+        address voter;
+        uint256 candidateId;
+    }
+
+    bytes32 constant MESSAGE_TYPEHASH = keccak256("Vote(address voter, uint256 candidateId)");
+
+
     Status public currentStatus;
     bytes32 private immutable i_merkleRoot;
     uint256 private s_candidateCount;
@@ -56,13 +67,12 @@ contract VoteProtocol {
     mapping(address voter => bool confirmVote) public s_hasVoted;
 
     event AddCandidate(uint256 candidateCount, string candidateName);
-    event Vote(bytes32 hashVoterAccount, uint256 candidateId, bool checkVote);
+    event Vote_(bytes32 hashVoterAccount, uint256 candidateId, bool checkVote);
 
-    constructor(bytes32 merkleRoot) {
+    constructor(bytes32 merkleRoot) EIP712("VoteProtocol", "1") {
         s_voteAdmistrator = msg.sender;
         i_merkleRoot = merkleRoot;
         currentStatus = Status.Registration;
-        
     }
 
     modifier onlyOwner() {
@@ -84,7 +94,7 @@ contract VoteProtocol {
         if (bytes(_name).length == 0 && account == address(0)) {
             revert VoteProtocol__InvalidCandidateNameAndAccount();
         }
-        
+
         if (_confirmIfCandidateHasRegistered(account)) {
             revert VoteProtocol__HasAlreadyRegistered();
         }
@@ -103,24 +113,30 @@ contract VoteProtocol {
         currentStatus = Status.Voting;
     }
 
-    function countVote(uint256 candidateId) external returns (uint256) {
+    function countVote(uint256 candidateId) external view returns (uint256) {
         return s_candidates[candidateId].voteCount;
     }
 
     /**
-     * 
-     * @param account the account of the voter 
+     *
+     * @param account the account of the voter
      * @param candidateId the unique id for the candidate to vote for
      * @param merkleProof the proof to confirm that you registered for the vote.
      * @notice this function confirm the authentication of the voter and initial a unchangable vote.
      */
-
-    function vote(address account, uint256 candidateId, bytes32[] calldata merkleProof) external {
+    function vote(address account, uint256 candidateId, bytes32[] calldata merkleProof, uint8 v, bytes32 r, bytes32 s)
+        external
+    {
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(account))));
-     
+
         if (currentStatus != Status.Voting) {
             revert VoteProtocol__VotingHasNotStarted();
         }
+
+        if (!_getValidSignature(account, getMessage(account, candidateId), v, r,s)) {
+            revert VoteProtocol__InvalidSignature();
+        }
+        
         if (s_hasVoted[account]) {
             revert VoteProtocol__AlreadyVoted();
         }
@@ -132,9 +148,8 @@ contract VoteProtocol {
         bool checkVote = true;
 
         s_candidates[candidateId].voteCount += 1;
-        
 
-        emit Vote(hashVoterAccount, candidateId, checkVote);
+        emit Vote_(hashVoterAccount, candidateId, checkVote);
     }
 
     function _stopVote() internal {
@@ -152,5 +167,16 @@ contract VoteProtocol {
 
     function getCandidateCount() public view returns (uint256 count) {
         count = s_candidates.length;
+    }
+
+    function getMessage(address voter, uint256 candidateId) public view returns (bytes32) {
+        return _hashTypedDataV4(
+            keccak256(abi.encode(MESSAGE_TYPEHASH, Vote({voter: voter, candidateId: candidateId})))
+        );
+    }
+
+    function _getValidSignature(address voter, bytes32 digest, uint8 v, bytes32 r, bytes32 s) internal pure returns (bool) {
+        (address actualSigner,,) = ECDSA.tryRecover(digest, v, r, s);
+        return (actualSigner == voter);
     }
 }
