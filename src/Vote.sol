@@ -178,6 +178,13 @@ contract VoteProtocol is EIP712 {
         count = s_candidates.length;
     }
 
+    /**
+     * 
+     * @param voter the address of the voter
+     * @param candidateId the actual candidate ID the voter voted for 
+     * @notice this function combine the voter address and the candidate ID and hash them together.
+     */
+
     function getMessage(address voter, uint256 candidateId) public view returns (bytes32) {
         return _hashTypedDataV4(
             keccak256(abi.encode(MESSAGE_TYPEHASH, Vote({voter: voter, candidateId: candidateId})))
