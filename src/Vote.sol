@@ -170,6 +170,10 @@ contract VoteProtocol is EIP712 {
         checked = false;
     }
 
+    /**
+     * @notice this function get the actual count of candidate that register for ballot 
+     */
+
     function getCandidateCount() public view returns (uint256 count) {
         count = s_candidates.length;
     }
