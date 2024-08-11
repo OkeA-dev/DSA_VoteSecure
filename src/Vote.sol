@@ -183,7 +183,10 @@ contract VoteProtocol is EIP712 {
             keccak256(abi.encode(MESSAGE_TYPEHASH, Vote({voter: voter, candidateId: candidateId})))
         );
     }
-
+    /**
+     * @param voter address that sign that sign the message
+     * @notice this function helps in validating that signer == voter using the v, r, s signature attributes.
+     */
     function _getValidSignature(address voter, bytes32 digest, uint8 v, bytes32 r, bytes32 s) internal pure returns (bool) {
         (address actualSigner,,) = ECDSA.tryRecover(digest, v, r, s);
         return (actualSigner == voter);
