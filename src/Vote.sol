@@ -156,6 +156,11 @@ contract VoteProtocol is EIP712 {
         currentStatus = Status.Voting_Ended;
     }
 
+    /**
+     * @param account an address of a voter  
+     * @notice this function check if a voter has registered for the voter
+     */
+
     function _confirmIfCandidateHasRegistered(address account) internal view returns (bool checked) {
         for (uint256 i = 0; i < s_candidates.length; i++) {
             if (s_candidates[i].account == account) {
