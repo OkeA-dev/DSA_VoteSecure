@@ -158,7 +158,7 @@ contract VoteProtocol is EIP712 {
 
     /**
      * @param account an address of a voter  
-     * @notice this function check if a voter has registered for the voter
+     * @notice this internal function check if a voter has registered for the voter
      */
 
     function _confirmIfCandidateHasRegistered(address account) internal view returns (bool checked) {
